@@ -106,10 +106,11 @@
                    id="flag_static_prefix" value="{{ challenge.flag_static_prefix or '' }}">
         </div>
         <div class="alert alert-info">
-            <strong>How it works:</strong> Half-dynamic flags use the global flag template from CTFd-Whale settings, but replace the random UUID with your custom prefix + random_part.<br><br>
-            <strong>Example:</strong> With global template <code>flag{...}</code> and prefix "user_":<br>
-            <code>flag{user_abc12def}</code><br>
-            <small>Where "abc12def" is randomly generated for each user, and the "flag{}" wrapper comes from your global template setting.</small>
+            <strong>How it works:</strong> Half-dynamic flags use the global flag template from CTFd-Whale settings, but replace the random part with your custom prefix + random_part.<br><br>
+            <strong>Example:</strong> With global template <code>flag{...}</code> and prefix "ch4ll3ng3_H4CK3D"
+":<br>
+            <code>flag{ch4ll3ng3_H4CK3D_ac5a24ee4b}</code><br>
+            <small>Where "ac5a24ee4b" is randomly generated for each user, and the "flag{}" wrapper comes from your global template setting.</small>
         </div>
     </div>
     

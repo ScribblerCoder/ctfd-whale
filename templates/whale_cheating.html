@@ -87,140 +87,112 @@
     </div>
 
     <div class="row">
-        {% if cheating_attempts %}
-            {% for attempt in cheating_attempts %}
-                <div class="col-md-6 pb-3">
-                    <div class="card border-danger">
-                        <div class="card-header bg-danger text-white">
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <h6 class="mb-0">
-                                        <i class="fas fa-exclamation-triangle"></i>
-                                        Cheating Attempt #{{ attempt.id }}
-                                    </h6>
-                                    <small>{{ attempt.attempt_time.strftime('%Y-%m-%d %H:%M:%S') }}</small>
-                                </div>
-                                <div class="col-md-4 text-right">
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-light btn-sm investigate-user" 
-                                                data-user-id="{{ attempt.cheater.id }}"
-                                                data-user-name="{{ attempt.cheater.name }}"
-                                                title="Investigate User">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                        <button class="btn btn-warning btn-sm warn-user" 
-                                                data-user-id="{{ attempt.cheater.id }}"
-                                                data-user-name="{{ attempt.cheater.name }}"
-                                                title="Send Warning">
-                                            <i class="fas fa-exclamation"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <strong>Cheater:</strong>
-                                </div>
-                                <div class="col-sm-8">
+        <div class="col-md-12">
+            {% if cheating_attempts %}
+                <table class="table table-striped border">
+                    <thead>
+                        <tr>
+                            <th class="text-center"><b>Time</b></th>
+                            <th class="text-center"><b>Cheater</b></th>
+                            <th class="text-center"><b>Victim</b></th>
+                            <th class="text-center"><b>Challenge</b></th>
+                            <th class="text-center"><b>Flag</b></th>
+                            <th class="text-center"><b>IP Address</b></th>
+                            <th class="text-center"><b>User Agent</b></th>
+                            <th class="text-center"><b>Actions</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attempt in cheating_attempts %}
+                            <tr class="{% if loop.index <= 5 %}table-danger{% endif %}">
+                                <td class="text-center">
+                                    <small>{{ attempt.attempt_time.strftime('%Y-%m-%d') }}<br>{{ attempt.attempt_time.strftime('%H:%M:%S') }}</small>
+                                </td>
+                                <td class="text-center">
                                     <a href="{{ url_for('admin.users_detail', user_id=attempt.cheater.id) }}" 
                                        class="badge badge-danger">
-                                        {{ attempt.cheater.name }}
+                                        {{ attempt.cheater.name | truncate(12) }}
                                     </a>
-                                    <small class="text-muted">(ID: {{ attempt.cheater.id }})</small>
-                                </div>
-                            </div>
-                            
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <strong>Victim:</strong>
-                                </div>
-                                <div class="col-sm-8">
+                                    <br><small class="text-muted">ID: {{ attempt.cheater.id }}</small>
+                                </td>
+                                <td class="text-center">
                                     <a href="{{ url_for('admin.users_detail', user_id=attempt.victim.id) }}" 
                                        class="badge badge-info">
-                                        {{ attempt.victim.name }}
+                                        {{ attempt.victim.name | truncate(12) }}
                                     </a>
-                                    <small class="text-muted">(ID: {{ attempt.victim.id }})</small>
-                                </div>
-                            </div>
-                            
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <strong>Challenge:</strong>
-                                </div>
-                                <div class="col-sm-8">
+                                    <br><small class="text-muted">ID: {{ attempt.victim.id }}</small>
+                                </td>
+                                <td class="text-center">
                                     <a href="{{ url_for('admin.challenges_detail', challenge_id=attempt.challenge.id) }}">
-                                        {{ attempt.challenge.name | truncate(25) }}
+                                        {{ attempt.challenge.name | truncate(15) }}
                                     </a>
                                     <br><small class="text-muted">{{ attempt.challenge.category }}</small>
-                                </div>
-                            </div>
-                            
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <strong>Flag:</strong>
-                                </div>
-                                <div class="col-sm-8">
-                                    <button class="btn btn-outline-secondary btn-sm click-copy" 
-                                            data-copy="{{ attempt.submitted_flag }}" 
-                                            data-toggle="tooltip" 
-                                            title="Click to copy full flag">
-                                        <i class="fas fa-clipboard"></i> {{ attempt.submitted_flag | truncate(20) }}
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-link p-0 click-copy" data-copy="{{ attempt.submitted_flag }}" 
+                                            data-toggle="tooltip" title="Click to copy full flag">
+                                        <i class="fas fa-clipboard"></i>
                                     </button>
-                                </div>
-                            </div>
-                            
-                            {% if attempt.cheater_ip %}
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <strong>IP Address:</strong>
-                                </div>
-                                <div class="col-sm-8">
-                                    <button class="btn btn-outline-secondary btn-sm click-copy" 
-                                            data-copy="{{ attempt.cheater_ip }}" 
-                                            data-toggle="tooltip" 
-                                            title="Click to copy IP address">
-                                        <i class="fas fa-clipboard"></i> {{ attempt.cheater_ip }}
+                                    <br><small class="text-muted">{{ attempt.submitted_flag | truncate(10) }}</small>
+                                </td>
+                                <td class="text-center">
+                                    {% if attempt.cheater_ip %}
+                                        <button class="btn btn-link p-0 click-copy" data-copy="{{ attempt.cheater_ip }}" 
+                                                data-toggle="tooltip" title="Click to copy IP">
+                                            <i class="fas fa-clipboard"></i>
+                                        </button>
+                                        <br><small class="text-muted">{{ attempt.cheater_ip }}</small>
+                                    {% else %}
+                                        <small class="text-muted">Unknown</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if attempt.user_agent %}
+                                        <button class="btn btn-link p-0 click-copy" data-copy="{{ attempt.user_agent }}" 
+                                                data-toggle="tooltip" title="Click to copy user agent">
+                                            <i class="fas fa-clipboard"></i>
+                                        </button>
+                                        <br><small class="text-muted">{{ attempt.user_agent | truncate(15) }}</small>
+                                    {% else %}
+                                        <small class="text-muted">N/A</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-link p-0 investigate-user" 
+                                            data-user-id="{{ attempt.cheater.id }}"
+                                            data-user-name="{{ attempt.cheater.name }}"
+                                            data-toggle="tooltip" data-placement="top"
+                                            title="Investigate User">
+                                        <i class="fas fa-search"></i>
                                     </button>
-                                </div>
-                            </div>
-                            {% endif %}
-                            
-                            {% if attempt.user_agent %}
-                            <div class="row">
-                                <div class="col-sm-4">
-                                    <strong>User Agent:</strong>
-                                </div>
-                                <div class="col-sm-8">
-                                    <button class="btn btn-outline-secondary btn-sm click-copy" 
-                                            data-copy="{{ attempt.user_agent }}" 
-                                            data-toggle="tooltip" 
-                                            title="Click to copy full user agent">
-                                        <i class="fas fa-clipboard"></i> {{ attempt.user_agent | truncate(30) }}
+                                    <button class="btn btn-link p-0 warn-user" 
+                                            data-user-id="{{ attempt.cheater.id }}"
+                                            data-user-name="{{ attempt.cheater.name }}"
+                                            data-toggle="tooltip" data-placement="top"
+                                            title="Send Warning">
+                                        <i class="fas fa-exclamation-triangle text-warning"></i>
                                     </button>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div class="col-md-12">
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
                 <div class="text-center py-5">
                     <i class="fas fa-shield-alt fa-5x text-success mb-3"></i>
                     <h3 class="text-success">No Cheating Detected!</h3>
                     <p class="text-muted">All flag submissions appear to be legitimate.</p>
                 </div>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 {% endblock %}
 
 {% block scripts %}
     <script>
-        // Copy to clipboard functionality
+        const $ = CTFd.lib.$;
+
+        // Copy to clipboard functionality (FIXED)
         function copyToClipboard(event, str) {
             const el = document.createElement('textarea');
             el.value = str;
@@ -244,13 +216,15 @@
             }, 1500);
         }
 
+        // FIXED: Click to copy functionality
         $(".click-copy").click(function (e) {
             e.preventDefault();
             copyToClipboard(e, $(this).data("copy"));
         });
 
-        // Investigate user functionality
-        $(".investigate-user").click(function() {
+        // FIXED: Investigate user functionality
+        $(".investigate-user").click(function(e) {
+            e.preventDefault();
             const userId = $(this).data('user-id');
             const userName = $(this).data('user-name');
             
@@ -263,8 +237,9 @@
             });
         });
 
-        // Warn user functionality  
-        $(".warn-user").click(function() {
+        // FIXED: Warn user functionality  
+        $(".warn-user").click(function(e) {
+            e.preventDefault();
             const userId = $(this).data('user-id');
             const userName = $(this).data('user-name');
             
@@ -273,7 +248,7 @@
                 body: `Send a warning message to <strong>${userName}</strong> about cheating:`,
                 placeholder: "Enter warning message...",
                 success: function(message) {
-                    if (message.trim()) {
+                    if (message && message.trim()) {
                         CTFd.ui.ezq.ezAlert({
                             title: "Warning Sent",
                             body: `Warning sent to ${userName}: "${message}"`,
@@ -284,8 +259,9 @@
             });
         });
 
-        // Clear old records
-        $("#clear-old-records").click(function() {
+        // FIXED: Clear old records functionality
+        $("#clear-old-records").click(function(e) {
+            e.preventDefault();
             CTFd.ui.ezq.ezQuery({
                 title: "Clear Old Records", 
                 body: "Are you sure you want to clear cheating records older than 30 days?",
@@ -297,22 +273,31 @@
                             'Accept': 'application/json',
                             'Content-Type': 'application/json'
                         }
-                    }).then(response => response.json())
-                    .then(data => {
+                    }).then(function(response) {
+                        return response.json();
+                    }).then(function(data) {
                         if (data.success) {
                             CTFd.ui.ezq.ezAlert({
                                 title: "Success",
                                 body: data.message,
                                 button: "OK"
                             });
-                            location.reload();
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1000);
                         } else {
                             CTFd.ui.ezq.ezAlert({
-                                title: "Error",
-                                body: data.message,
+                                title: "Error", 
+                                body: data.message || "An error occurred",
                                 button: "OK"
                             });
                         }
+                    }).catch(function(error) {
+                        CTFd.ui.ezq.ezAlert({
+                            title: "Error",
+                            body: "Failed to clear records: " + error.message,
+                            button: "OK"
+                        });
                     });
                 }
             });
