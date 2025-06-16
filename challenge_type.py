@@ -58,6 +58,12 @@ class DynamicValueDockerChallenge(BaseChallenge):
                 value = float(value)
             if attr == 'dynamic_score':
                 value = int(value)
+            # Handle new flag mode fields
+            if attr in ('flag_mode', 'flag_static_prefix'):
+                # Ensure the fields exist on the challenge object
+                if hasattr(challenge, attr):
+                    setattr(challenge, attr, value)
+                continue
             setattr(challenge, attr, value)
 
         if challenge.dynamic_score == 1:
@@ -67,30 +73,54 @@ class DynamicValueDockerChallenge(BaseChallenge):
         return challenge
 
     @classmethod
+    def create(cls, request):
+        """
+        This method is used to process the challenge creation request.
+        """
+        data = request.form or request.get_json()
+        
+        # Extract flag mode data
+        flag_mode = data.get('flag_mode', 'dynamic')
+        flag_static_prefix = data.get('flag_static_prefix', '')
+
+        challenge = cls.challenge_model(**data)
+        
+        # Set the new flag mode fields
+        challenge.flag_mode = flag_mode
+        challenge.flag_static_prefix = flag_static_prefix
+
+        db.session.add(challenge)
+        db.session.commit()
+
+        return challenge
+
+    @classmethod
     def attempt(cls, challenge, request):
         data = request.form or request.get_json()
         submission = data["submission"].strip()
 
+        # Check for manual flags first (for static flag mode)
         flags = Flags.query.filter_by(challenge_id=challenge.id).all()
-
         if len(flags) > 0:
             for flag in flags:
                 if get_flag_class(flag.type).compare(flag, submission):
                     return True, "Correct"
             return False, "Incorrect"
-        else:
-            user_id = current_user.get_current_user().id
-            q = db.session.query(WhaleContainer)
-            q = q.filter(WhaleContainer.user_id == user_id)
-            q = q.filter(WhaleContainer.challenge_id == challenge.id)
-            records = q.all()
-            if len(records) == 0:
-                return False, "Please solve it during the container is running"
+        
+        # For dynamic and half-dynamic flags, check container flag
+        user_id = current_user.get_current_user().id
+        q = db.session.query(WhaleContainer)
+        q = q.filter(WhaleContainer.user_id == user_id)
+        q = q.filter(WhaleContainer.challenge_id == challenge.id)
+        records = q.all()
+        
+        if len(records) == 0:
+            return False, "Please solve it during the container is running"
 
-            container = records[0]
-            if container.flag == submission:
-                return True, "Correct"
-            return False, "Incorrect"
+        container = records[0]
+        if container.flag == submission:
+            return True, "Correct"
+        return False, "Incorrect"
 
     @classmethod
     def solve(cls, user, team, challenge, request):

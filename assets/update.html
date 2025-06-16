@@ -80,6 +80,39 @@
         <input type="number" class="form-control" name="cpu_limit" placeholder="Enter the cpu limit"
                value="{{ challenge.cpu_limit }}" required>
     </div>
+    
+    <!-- Flag Configuration Section -->
+    <div class="form-group">
+        <label for="flag_mode">Flag Mode<br>
+            <small class="form-text text-muted">
+                Choose how flags are generated for this challenge
+            </small>
+        </label>
+        <select class="form-control" name="flag_mode" id="flag_mode" onchange="toggleFlagOptions()">
+            <option value="static" {% if challenge.flag_mode == "static" %}selected{% endif %}>Static Flag (Manual)</option>
+            <option value="dynamic" {% if challenge.flag_mode == "dynamic" or not challenge.flag_mode %}selected{% endif %}>Fully Dynamic Flag</option>
+            <option value="half_dynamic" {% if challenge.flag_mode == "half_dynamic" %}selected{% endif %}>Half Dynamic Flag</option>
+        </select>
+    </div>
+    
+    <div id="half-dynamic-options" style="display: {% if challenge.flag_mode == 'half_dynamic' %}block{% else %}none{% endif %};">
+        <div class="form-group">
+            <label for="flag_static_prefix">Flag Static Prefix<br>
+                <small class="form-text text-muted">
+                    Static text that will appear at the beginning of the flag before the random part
+                </small>
+            </label>
+            <input type="text" class="form-control" name="flag_static_prefix" placeholder="e.g., 'user_'" 
+                   id="flag_static_prefix" value="{{ challenge.flag_static_prefix or '' }}">
+        </div>
+        <div class="alert alert-info">
+            <strong>How it works:</strong> Half-dynamic flags use the global flag template from CTFd-Whale settings, but replace the random UUID with your custom prefix + random_part.<br><br>
+            <strong>Example:</strong> With global template <code>flag{...}</code> and prefix "user_":<br>
+            <code>flag{user_abc12def}</code><br>
+            <small>Where "abc12def" is randomly generated for each user, and the "flag{}" wrapper comes from your global template setting.</small>
+        </div>
+    </div>
+    
     <div class="form-group">
         <label for="value">Score Type<br>
             <small class="form-text text-muted">
@@ -91,4 +124,22 @@
             <option value="1" {% if challenge.dynamic_score == 1 %}selected{% endif %}>Dynamic Score</option>
         </select>
     </div>
+    
+    <script>
+        function toggleFlagOptions() {
+            const flagMode = document.getElementById('flag_mode').value;
+            const halfDynamicOptions = document.getElementById('half-dynamic-options');
+            
+            if (flagMode === 'half_dynamic') {
+                halfDynamicOptions.style.display = 'block';
+            } else {
+                halfDynamicOptions.style.display = 'none';
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleFlagOptions();
+        });
+    </script>
 {% endblock %}
