@@ -1,5 +1,6 @@
 import fcntl
 import warnings
+from datetime import datetime, timedelta
 
 import requests
 from flask import Blueprint, render_template, session, current_app, request
@@ -13,8 +14,9 @@ from CTFd.plugins import (
 from CTFd.plugins.challenges import CHALLENGE_CLASSES
 from CTFd.utils import get_config, set_config
 from CTFd.utils.decorators import admins_only
+from CTFd.models import db
 
-from .api import user_namespace, admin_namespace, AdminContainers
+from .api import user_namespace, admin_namespace, AdminContainers, AdminCheatingAttempts
 from .challenge_type import DynamicValueDockerChallenge
 from .utils.checks import WhaleChecks
 from .utils.control import ControlUtil
@@ -23,6 +25,7 @@ from .utils.docker import DockerUtils
 from .utils.exceptions import WhaleWarning
 from .utils.setup import setup_default_configs
 from .utils.routers import Router
+from .models import WhaleCheatingAttempt, WhaleSolvedFlag
 
 
 def load(app):
@@ -92,11 +95,79 @@ def load(app):
                                curr_page=abs(request.args.get("page", 1, type=int)),
                                curr_page_start=result['data']['page_start'])
 
+    @page_blueprint.route("/admin/cheating")
+    @admins_only
+    def admin_list_cheating():
+        """Admin page for viewing cheating detection results"""
+        page = abs(request.args.get("page", 1, type=int))
+        results_per_page = abs(request.args.get("per_page", 20, type=int))
+        page_start = results_per_page * (page - 1)
+        page_end = results_per_page * (page - 1) + results_per_page
+
+        # Get cheating attempts
+        total_count = WhaleCheatingAttempt.query.count()
+        cheating_attempts = WhaleCheatingAttempt.query.order_by(
+            WhaleCheatingAttempt.attempt_time.desc()
+        ).slice(page_start, page_end).all()
+
+        # Calculate statistics
+        total_attempts = total_count
+        unique_cheaters = db.session.query(WhaleCheatingAttempt.cheater_user_id).distinct().count()
+        unique_victims = db.session.query(WhaleCheatingAttempt.victim_user_id).distinct().count()
+        affected_challenges = db.session.query(WhaleCheatingAttempt.challenge_id).distinct().count()
+
+        return render_template("whale_cheating.html",
+                               plugin_name=plugin_name,
+                               cheating_attempts=cheating_attempts,
+                               total_attempts=total_attempts,
+                               unique_cheaters=unique_cheaters,
+                               unique_victims=unique_victims,
+                               affected_challenges=affected_challenges,
+                               pages=int(total_count / results_per_page) + (total_count % results_per_page > 0),
+                               curr_page=page,
+                               curr_page_start=page_start)
+
     def auto_clean_container():
+        """Enhanced cleanup that manages containers and old solved flags"""
         with app.app_context():
+            # Clean expired containers (existing logic)
             results = DBContainer.get_all_expired_container()
             for r in results:
                 ControlUtil.try_remove_container(r.user_id)
+            
+            # Clean old solved flags (extended cheating detection cleanup)
+            cheating_detection_period = int(get_config("whale:cheating_detection_period", "86400"))  # 24 hours default
+            
+            if cheating_detection_period > 0:  # Only clean if period is set (0 = keep forever)
+                cutoff_time = datetime.now() - timedelta(seconds=cheating_detection_period)
+                
+                old_solved_flags = WhaleSolvedFlag.query.filter(
+                    WhaleSolvedFlag.solved_time < cutoff_time
+                ).all()
+                
+                if old_solved_flags:
+                    for solved_flag in old_solved_flags:
+                        db.session.delete(solved_flag)
+                    
+                    db.session.commit()
+                    print(f"[Whale] Cleaned {len(old_solved_flags)} old solved flags (older than {cheating_detection_period} seconds)")
+            
+            # Clean old cheating attempts (optional - keep for longer analysis)
+            cheating_log_retention = int(get_config("whale:cheating_log_retention", "2592000"))  # 30 days default
+            
+            if cheating_log_retention > 0:
+                log_cutoff_time = datetime.now() - timedelta(seconds=cheating_log_retention)
+                
+                old_cheating_attempts = WhaleCheatingAttempt.query.filter(
+                    WhaleCheatingAttempt.attempt_time < log_cutoff_time
+                ).all()
+                
+                if old_cheating_attempts:
+                    for attempt in old_cheating_attempts:
+                        db.session.delete(attempt)
+                    
+                    db.session.commit()
+                    print(f"[Whale] Cleaned {len(old_cheating_attempts)} old cheating attempt logs (older than {cheating_log_retention} seconds)")
 
     app.register_blueprint(page_blueprint)
 
@@ -119,6 +190,6 @@ def load(app):
             trigger="interval", seconds=10
         )
 
-        print("[CTFd Whale] Started successfully")
+        print("[CTFd Whale] Started successfully with extended cheating detection enabled")
     except IOError:
         pass

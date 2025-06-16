@@ -1,7 +1,7 @@
 import random
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from jinja2 import Template
 
@@ -34,6 +34,81 @@ class WhaleRedirectTemplate(db.Model):
 
     def __repr__(self):
         return "<WhaleRedirectTemplate {0}>".format(self.key)
+
+
+class WhaleCheatingAttempt(db.Model):
+    """Track cheating attempts when users submit other users' flags"""
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    cheater_user_id = db.Column(None, db.ForeignKey("users.id"))  # User who submitted wrong flag
+    victim_user_id = db.Column(None, db.ForeignKey("users.id"))   # User whose flag was submitted
+    challenge_id = db.Column(None, db.ForeignKey("challenges.id"))
+    submitted_flag = db.Column(db.String(128))
+    attempt_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    cheater_ip = db.Column(db.String(45))  # IPv4 or IPv6 address
+    user_agent = db.Column(db.Text)
+    
+    # Relationships
+    cheater = db.relationship("Users", foreign_keys="WhaleCheatingAttempt.cheater_user_id", lazy="select")
+    victim = db.relationship("Users", foreign_keys="WhaleCheatingAttempt.victim_user_id", lazy="select")
+    challenge = db.relationship("DynamicDockerChallenge", foreign_keys="WhaleCheatingAttempt.challenge_id", lazy="select")
+
+    def __init__(self, cheater_user_id, victim_user_id, challenge_id, submitted_flag, cheater_ip=None, user_agent=None):
+        self.cheater_user_id = cheater_user_id
+        self.victim_user_id = victim_user_id
+        self.challenge_id = challenge_id
+        self.submitted_flag = submitted_flag
+        self.attempt_time = datetime.now()
+        self.cheater_ip = cheater_ip
+        self.user_agent = user_agent
+
+    def __repr__(self):
+        return "<WhaleCheatingAttempt ID:{0} Cheater:{1} Victim:{2} Challenge:{3}>".format(
+            self.id, self.cheater_user_id, self.victim_user_id, self.challenge_id)
+
+
+class WhaleSolvedFlag(db.Model):
+    """Store solved flags for extended cheating detection"""
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(None, db.ForeignKey("users.id"))
+    challenge_id = db.Column(None, db.ForeignKey("challenges.id"))
+    flag = db.Column(db.String(128), nullable=False)
+    solved_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    container_uuid = db.Column(db.String(256))  # Reference to original container
+    
+    # Relationships
+    user = db.relationship("Users", foreign_keys="WhaleSolvedFlag.user_id", lazy="select")
+    challenge = db.relationship("DynamicDockerChallenge", foreign_keys="WhaleSolvedFlag.challenge_id", lazy="select")
+
+    def __init__(self, user_id, challenge_id, flag, container_uuid):
+        self.user_id = user_id
+        self.challenge_id = challenge_id
+        self.flag = flag
+        self.solved_time = datetime.now()
+        self.container_uuid = container_uuid
+
+    def __repr__(self):
+        return "<WhaleSolvedFlag ID:{0} User:{1} Challenge:{2} Flag:{3}>".format(
+            self.id, self.user_id, self.challenge_id, self.flag[:10] + "...")
+
+    @staticmethod
+    def find_flag_owner_extended(submitted_flag, challenge_id):
+        """Find flag owner in both active containers and solved flags"""
+        # First check active containers
+        container = WhaleContainer.query.filter_by(
+            flag=submitted_flag,
+            challenge_id=challenge_id
+        ).first()
+        
+        if container:
+            return container.user_id
+            
+        # Then check solved flags (for extended detection)
+        solved_flag = WhaleSolvedFlag.query.filter_by(
+            flag=submitted_flag,
+            challenge_id=challenge_id
+        ).first()
+        
+        return solved_flag.user_id if solved_flag else None
 
 
 class DynamicDockerChallenge(DynamicChallenge):
@@ -129,9 +204,6 @@ class WhaleContainer(db.Model):
             # Get the flag template from config
             flag_template = get_config('whale:template_chall_flag', '{{ "flag{"+uuid.uuid4()|string+"}" }}')
             
-            # Parse the template to extract the format and replace content between {}
-            import re
-            
             # First render the template to get the actual flag format
             temp_context = {
                 'container': self,
@@ -147,37 +219,26 @@ class WhaleContainer(db.Model):
             match = re.match(pattern, rendered_template)
             
             if match:
-                    # Extract prefix (before {}), content (between {}), and suffix (after {})
-                    template_prefix = match.group(1)  # e.g., "flag{" or "CTFNAME{"
-                    template_suffix = match.group(3)   # e.g., "}" or "}_END"
-                    
-                    # Construct final flag with our half-dynamic content
-                    final_flag = template_prefix + half_dynamic_content + template_suffix
-                    return final_flag
+                # Extract prefix (before {}), content (between {}), and suffix (after {})
+                template_prefix = match.group(1)  # e.g., "flag{" or "CTFNAME{"
+                template_suffix = match.group(3)   # e.g., "}" or "}_END"
+                
+                # Construct final flag with our half-dynamic content
+                final_flag = template_prefix + half_dynamic_content + template_suffix
+                return final_flag
             else:
                 # Fallback: if no {} found, just append our content
                 return rendered_template + half_dynamic_content
+                
         else:  # dynamic mode (default)
             return Template(get_config(
                 'whale:template_chall_flag', '{{ "flag{"+uuid.uuid4()|string+"}" }}'
             )).render(container=self, uuid=uuid, random=random, get_config=get_config)
 
-    @property
-    def user_access(self):
-        return Template(WhaleRedirectTemplate.query.filter_by(
-            key=self.challenge.redirect_type
-        ).first().access_template).render(container=self, get_config=get_config)
-
-    @property
-    def frp_config(self):
-        return Template(WhaleRedirectTemplate.query.filter_by(
-            key=self.challenge.redirect_type
-        ).first().frp_template).render(container=self, get_config=get_config)
-
-    def __repr__(self):
-        return "<WhaleContainer ID:{0} {1} {2} {3} {4}>".format(self.id, self.user_id, self.challenge_id,
-                                                                self.start_time, self.renew_count)
-            
+    @staticmethod
+    def find_flag_owner(submitted_flag, challenge_id):
+        """Find which user owns a specific flag for a challenge (enhanced version)"""
+        return WhaleSolvedFlag.find_flag_owner_extended(submitted_flag, challenge_id)
 
     @property
     def user_access(self):
