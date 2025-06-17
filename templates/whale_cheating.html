@@ -190,122 +190,174 @@
 
 {% block scripts %}
     <script>
-        const $ = CTFd.lib.$;
 
-        // Copy to clipboard functionality (FIXED)
-        function copyToClipboard(event, str) {
-            const el = document.createElement('textarea');
-            el.value = str;
-            el.setAttribute('readonly', '');
-            el.style.position = 'absolute';
-            el.style.left = '-9999px';
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
+        function initializeCheatingPage() {
 
-            $(event.target).tooltip('dispose');
-            $(event.target).tooltip({
-                title: "Copied!",
-                trigger: "manual"
-            });
-            $(event.target).tooltip("show");
+            const $ = (typeof CTFd !== 'undefined' && CTFd.lib && CTFd.lib.$) ? CTFd.lib.$ : 
+                      (typeof jQuery !== 'undefined') ? jQuery : 
+                      (typeof $ !== 'undefined') ? $ : null;
 
-            setTimeout(function () {
-                $(event.target).tooltip("hide");
-            }, 1500);
-        }
+            if (!$) {
+                console.error('jQuery not available');
+                return;
+            }
 
-        // FIXED: Click to copy functionality
-        $(".click-copy").click(function (e) {
-            e.preventDefault();
-            copyToClipboard(e, $(this).data("copy"));
-        });
 
-        // FIXED: Investigate user functionality
-        $(".investigate-user").click(function(e) {
-            e.preventDefault();
-            const userId = $(this).data('user-id');
-            const userName = $(this).data('user-name');
-            
-            CTFd.ui.ezq.ezQuery({
-                title: "Investigate User",
-                body: `Open detailed view for user <strong>${userName}</strong> (ID: ${userId})?`,
-                success: function() {
-                    window.open(`/admin/users/${userId}`, '_blank');
+            function copyToClipboard(event, str) {
+                const el = document.createElement('textarea');
+                el.value = str;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+
+                $(event.target).tooltip('dispose');
+                $(event.target).tooltip({
+                    title: "Copied!",
+                    trigger: "manual"
+                });
+                $(event.target).tooltip("show");
+
+                setTimeout(function () {
+                    $(event.target).tooltip("hide");
+                }, 1500);
+            }
+
+
+            function showAlert(title, body, type = 'info') {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezAlert) {
+                    CTFd.ui.ezq.ezAlert({
+                        title: title,
+                        body: body,
+                        button: "OK"
+                    });
+                } else {
+                    alert(title + ': ' + body);
                 }
-            });
-        });
+            }
 
-        // FIXED: Warn user functionality  
-        $(".warn-user").click(function(e) {
-            e.preventDefault();
-            const userId = $(this).data('user-id');
-            const userName = $(this).data('user-name');
-            
-            CTFd.ui.ezq.ezPrompt({
-                title: "Send Warning to User",
-                body: `Send a warning message to <strong>${userName}</strong> about cheating:`,
-                placeholder: "Enter warning message...",
-                success: function(message) {
-                    if (message && message.trim()) {
-                        CTFd.ui.ezq.ezAlert({
-                            title: "Warning Sent",
-                            body: `Warning sent to ${userName}: "${message}"`,
-                            button: "OK"
-                        });
+
+            function showConfirm(title, body, callback) {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezQuery) {
+                    CTFd.ui.ezq.ezQuery({
+                        title: title,
+                        body: body,
+                        success: callback
+                    });
+                } else {
+                    if (confirm(title + ': ' + body)) {
+                        callback();
                     }
                 }
-            });
-        });
+            }
 
-        // FIXED: Clear old records functionality
-        $("#clear-old-records").click(function(e) {
-            e.preventDefault();
-            CTFd.ui.ezq.ezQuery({
-                title: "Clear Old Records", 
-                body: "Are you sure you want to clear cheating records older than 30 days?",
-                success: function() {
-                    fetch('/api/v1/plugins/ctfd-whale/admin/cheating/clear', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        }
-                    }).then(function(response) {
-                        return response.json();
-                    }).then(function(data) {
-                        if (data.success) {
-                            CTFd.ui.ezq.ezAlert({
-                                title: "Success",
-                                body: data.message,
-                                button: "OK"
-                            });
-                            setTimeout(function() {
-                                location.reload();
-                            }, 1000);
-                        } else {
-                            CTFd.ui.ezq.ezAlert({
-                                title: "Error", 
-                                body: data.message || "An error occurred",
-                                button: "OK"
-                            });
-                        }
-                    }).catch(function(error) {
-                        CTFd.ui.ezq.ezAlert({
-                            title: "Error",
-                            body: "Failed to clear records: " + error.message,
-                            button: "OK"
-                        });
+
+            function showPrompt(title, body, placeholder, callback) {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezPrompt) {
+                    CTFd.ui.ezq.ezPrompt({
+                        title: title,
+                        body: body,
+                        placeholder: placeholder,
+                        success: callback
                     });
+                } else {
+                    const result = prompt(body, '');
+                    if (result) {
+                        callback(result);
+                    }
                 }
-            });
-        });
+            }
 
-        // Initialize tooltips
-        $(document).ready(function() {
-            $('[data-toggle="tooltip"]').tooltip();
-        });
+
+            $(".click-copy").click(function (e) {
+                e.preventDefault();
+                copyToClipboard(e, $(this).data("copy"));
+            });
+
+
+            $(".investigate-user").click(function(e) {
+                e.preventDefault();
+                const userId = $(this).data('user-id');
+                const userName = $(this).data('user-name');
+                
+                showConfirm(
+                    "Investigate User",
+                    `Open detailed view for user <strong>${userName}</strong> (ID: ${userId})?`,
+                    function() {
+                        window.open(`/admin/users/${userId}`, '_blank');
+                    }
+                );
+            });
+
+
+            $(".warn-user").click(function(e) {
+                e.preventDefault();
+                const userId = $(this).data('user-id');
+                const userName = $(this).data('user-name');
+                
+                showPrompt(
+                    "Send Warning to User",
+                    `Send a warning message to <strong>${userName}</strong> about cheating:`,
+                    "Enter warning message...",
+                    function(message) {
+                        if (message && message.trim()) {
+                            showAlert(
+                                "Warning Sent",
+                                `Warning sent to ${userName}: "${message}"`
+                            );
+                        }
+                    }
+                );
+            });
+
+
+            $("#clear-old-records").click(function(e) {
+                e.preventDefault();
+                showConfirm(
+                    "Clear Old Records", 
+                    "Are you sure you want to clear cheating records older than 30 days?",
+                    function() {
+                        fetch('/api/v1/plugins/ctfd-whale/admin/cheating/clear', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            }
+                        }).then(function(response) {
+                            return response.json();
+                        }).then(function(data) {
+                            if (data.success) {
+                                showAlert("Success", data.message);
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1000);
+                            } else {
+                                showAlert("Error", data.message || "An error occurred");
+                            }
+                        }).catch(function(error) {
+                            showAlert("Error", "Failed to clear records: " + error.message);
+                        });
+                    }
+                );
+            });
+
+
+            if ($.fn.tooltip) {
+                $('[data-toggle="tooltip"]').tooltip();
+            }
+        }
+
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(initializeCheatingPage, 500);
+            });
+        } else {
+            setTimeout(initializeCheatingPage, 500);
+        }
     </script>
 {% endblock %}

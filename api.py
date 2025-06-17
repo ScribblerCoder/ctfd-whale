@@ -14,6 +14,7 @@ from .decorators import challenge_visible, frequency_limited
 from .utils.control import ControlUtil
 from .utils.db import DBContainer
 from .utils.routers import Router
+from .utils.docker import DockerUtils
 from .models import WhaleCheatingAttempt
 
 admin_namespace = Namespace("ctfd-whale-admin")
@@ -65,6 +66,100 @@ class AdminContainers(Resource):
         user_id = request.args.get('user_id')
         result, message = ControlUtil.try_remove_container(user_id)
         return {'success': result, 'message': message}
+
+
+@admin_namespace.route('/images')
+class AdminImages(Resource):
+    @staticmethod
+    @admins_only
+    def get():
+        """Get all Docker images that match the configured prefix"""
+        try:
+            prefix = get_config("whale:docker_image_prefix", "")
+            if not prefix:
+                return {
+                    'success': False,
+                    'message': 'No image prefix configured. Please set whale:docker_image_prefix in settings.'
+                }
+
+            images = DockerUtils.get_images_by_prefix(prefix)
+            return {
+                'success': True,
+                'data': {
+                    'images': images,
+                    'prefix': prefix,
+                    'total': len(images)
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error fetching images: {str(e)}'
+            }, 500
+
+
+@admin_namespace.route('/images/list')
+class AdminImagesList(Resource):
+    @staticmethod
+    @admins_only
+    def get():
+        """Get simple list of image names for dropdown"""
+        try:
+            prefix = get_config("whale:docker_image_prefix", "")
+            if not prefix:
+                return {
+                    'success': False,
+                    'message': 'No image prefix configured'
+                }
+
+            images = DockerUtils.get_images_by_prefix(prefix)
+            image_names = [img['name'] for img in images]
+            
+            return {
+                'success': True,
+                'data': {
+                    'images': image_names,
+                    'prefix': prefix
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error fetching image list: {str(e)}'
+            }, 500
+
+
+@admin_namespace.route('/images/refresh')
+class AdminImagesRefresh(Resource):
+    @staticmethod
+    @admins_only
+    def post():
+        """Refresh Docker images cache"""
+        try:
+            # Force refresh by pulling latest image information
+            prefix = get_config("whale:docker_image_prefix", "")
+            if not prefix:
+                return {
+                    'success': False,
+                    'message': 'No image prefix configured'
+                }
+
+            # This will fetch fresh data from Docker daemon
+            images = DockerUtils.get_images_by_prefix(prefix, force_refresh=True)
+            
+            return {
+                'success': True,
+                'message': f'Refreshed {len(images)} images with prefix "{prefix}"',
+                'data': {
+                    'count': len(images),
+                    'prefix': prefix
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error refreshing images: {str(e)}'
+            }, 500
 
 
 @admin_namespace.route('/cheating')

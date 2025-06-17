@@ -14,7 +14,25 @@
                 The docker image used to deploy
             </small>
         </label>
-        <input type="text" class="form-control" name="docker_image" placeholder="Enter docker image name" required>
+        <div class="input-group">
+            <input type="text" class="form-control" name="docker_image" id="docker_image" placeholder="Enter docker image name" required>
+            <div class="input-group-append">
+                <button type="button" class="btn btn-outline-secondary" id="load-images-dropdown" 
+                        data-toggle="tooltip" title="Load available images">
+                    <i class="fas fa-list"></i>
+                </button>
+                <button type="button" class="btn btn-outline-info" id="refresh-images-list"
+                        data-toggle="tooltip" title="Refresh image list">
+                    <i class="fas fa-sync"></i>
+                </button>
+            </div>
+        </div>
+        <select class="form-control mt-2" id="available-images" style="display: none;">
+            <option value="">Loading available images...</option>
+        </select>
+        <small class="form-text text-muted">
+            <strong>Options:</strong> Type manually, or click <i class="fas fa-list"></i> to see available images matching the configured prefix.
+        </small>
     </div>
     <div class="form-group">
         <label for="value">Frp Redirect Type<br>
@@ -125,7 +143,6 @@
             <option value="1">Dynamic Score</option>
         </select>
     </div>
-    
     <script>
         function toggleFlagOptions() {
             const flagMode = document.getElementById('flag_mode').value;
@@ -140,9 +157,17 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Update challenge page loaded');
             toggleFlagOptions();
+            
+            // Initialize tooltips if jQuery is available
+            if (typeof $ !== 'undefined' && $.fn.tooltip) {
+                $('[data-toggle="tooltip"]').tooltip();
+            }
         });
     </script>
+    
+    <script defer src="{{ url_for('plugins.ctfd-whale.assets', path='image-management.js') }}"></script>
 {% endblock %}
 
 {% block type %}

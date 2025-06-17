@@ -95,6 +95,18 @@ def load(app):
                                curr_page=abs(request.args.get("page", 1, type=int)),
                                curr_page_start=result['data']['page_start'])
 
+    @page_blueprint.route("/admin/images")
+    @admins_only
+    def admin_list_images():
+        """Admin page for viewing Docker images - static HTML only"""
+        prefix = get_config("whale:docker_image_prefix", "")
+        error_message = None if prefix else "No image prefix configured."
+        
+        return render_template("whale_images.html",
+                            plugin_name=plugin_name,
+                            prefix=prefix,
+                            error_message=error_message)
+
     @page_blueprint.route("/admin/cheating")
     @admins_only
     def admin_list_cheating():
@@ -190,6 +202,6 @@ def load(app):
             trigger="interval", seconds=10
         )
 
-        print("[CTFd Whale] Started successfully with extended cheating detection enabled")
+        print("[CTFd Whale] Started successfully with extended cheating detection and image management enabled")
     except IOError:
         pass

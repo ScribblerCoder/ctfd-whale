@@ -23,6 +23,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'ctfd-whale.admin_list_images' }}" 
+                           href="/plugins/ctfd-whale/admin/images">
+                            <i class="fas fa-images text-info"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'ctfd-whale.admin_list_cheating' }}" 
                            href="/plugins/ctfd-whale/admin/cheating">
                             <i class="fas fa-shield-alt text-danger"></i> Cheating Detection
