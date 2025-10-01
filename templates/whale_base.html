@@ -10,6 +10,30 @@
         <div class="row">
             <div class="col-md-3">
                 <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'ctfd-whale.admin_list_configs' }}" 
+                           href="/plugins/ctfd-whale/admin/settings">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'ctfd-whale.admin_list_containers' }}" 
+                           href="/plugins/ctfd-whale/admin/containers">
+                            <i class="fas fa-server"></i> Instances
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'ctfd-whale.admin_list_images' }}" 
+                           href="/plugins/ctfd-whale/admin/images">
+                            <i class="fas fa-images text-info"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'ctfd-whale.admin_list_cheating' }}" 
+                           href="/plugins/ctfd-whale/admin/cheating">
+                            <i class="fas fa-shield-alt text-danger"></i> Cheating Detection
+                        </a>
+                    </li>
                     {% block menu %}
                     {% endblock %}
                 </ul>

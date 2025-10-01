@@ -102,7 +102,7 @@ Create a folder in `conf/` called `frp`
 mkdir ./conf/frp
 ```
 
-then create a configuration file for frps `./conf/frp/frps.ini`, and fill it with (remove the comments because they mess with the config file):
+then create a configuration file for frps `./conf/frp/frps.ini`, and fill it with:
 
 ```ini
 [common]
@@ -110,7 +110,7 @@ then create a configuration file for frps `./conf/frp/frps.ini`, and fill it wit
 bind_port = 7987  # port for frpc to connect to
 vhost_http_port = 8001  # port for mapping http challenges
 token = your_token
-subdomain_host = your_domain
+subdomain_host = node3.buuoj.cn
 # hostname that's mapped to frps by some reverse proxy (or IS frps itself)
 ```
 
@@ -249,12 +249,12 @@ If you wnat to go deeper:
 * add nginx to `default` and `internal` network
 * remove CTFd from `default` and remove the mapped 8000 port
 
-add following server block to `./conf/nginx/nginx.conf` and replace `<your-domain-here>` with your domain name:
+add following server block to `./conf/nginx/nginx.conf`:
 
 ```conf
 server {
   listen 80;
-  server_name *.<your-domain-here>;
+  server_name *.node3.buuoj.cn;
   location / {
     proxy_pass http://frps:8001;
     proxy_redirect off;
