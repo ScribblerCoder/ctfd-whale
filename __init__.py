@@ -145,7 +145,7 @@ def load(app):
             # Clean expired containers (existing logic)
             results = DBContainer.get_all_expired_container()
             for r in results:
-                ControlUtil.try_remove_container(r.user_id)
+                ControlUtil.try_remove_container(r.user_id, r.challenge_id)
             
             # Clean old solved flags (extended cheating detection cleanup)
             cheating_detection_period = int(get_config("whale:cheating_detection_period", "86400"))  # 24 hours default
