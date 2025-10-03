@@ -42,8 +42,9 @@ def frequency_limited(func):
         if "limit" not in session:
             session["limit"] = int(time.time())
         else:
-            if int(time.time()) - session["limit"] < 60:
-                abort(403, 'Frequency limit, You should wait at least 1 min.', success=False)
+            if int(time.time()) - session["limit"] < 30:
+                abort(403, 'You have been rate-limited, Please wait for 30 seconds.', success=False)
+
         session["limit"] = int(time.time())
 
         result = func(*args, **kwargs)

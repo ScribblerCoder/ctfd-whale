@@ -1,0 +1,524 @@
+{% extends "whale_base.html" %}
+
+{% block panel %}
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="alert alert-info" role="alert">
+                <h5><i class="fas fa-images"></i> Docker Images Management</h5>
+                <p>Manage Docker images that can be used for challenges. Only images matching the configured prefix are shown.</p>
+                
+                {% if prefix %}
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h3 id="total-images-count">-</h3>
+                                    <small>Available Images</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ prefix }}</h3>
+                                    <small>Image Prefix</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-secondary text-white">
+                                <div class="card-body">
+                                    <small><strong>Configuration:</strong> Set the image prefix in Settings → Docker → Image Prefix to filter available images</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="btn-group float-left" role="group">
+                <button type="button" class="btn btn-outline-primary"
+                    data-toggle="tooltip" title="Refresh Image List" id="refresh-images">
+                    <i class="fas fa-sync"></i> Refresh Images
+                </button>
+                <button type="button" class="btn btn-outline-success"
+                    data-toggle="tooltip" title="Pull New Image" id="pull-image">
+                    <i class="fas fa-download"></i> Pull Image
+                </button>
+            </div>
+            
+            <!-- Pagination will be loaded dynamically -->
+            <div id="pagination-container" class="float-right">
+            </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Loading state -->
+            <div id="loading-state" class="text-center py-5">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+                <h4>Loading Docker Images...</h4>
+                <p class="text-muted">Fetching images from Docker daemon...</p>
+            </div>
+
+            <!-- Error state -->
+            <div id="error-state" class="alert alert-warning" style="display: none;">
+                <h6><i class="fas fa-exclamation-triangle"></i> <span id="error-message">{{ error_message or 'An error occurred' }}</span></h6>
+                {% if not prefix %}
+                    <p class="mb-0">Go to <a href="/plugins/ctfd-whale/admin/settings">Settings → Docker</a> to configure the image prefix.</p>
+                {% endif %}
+            </div>
+
+            <!-- Images table -->
+            <div id="images-container" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Image Name</th>
+                                <th>Short Name</th>
+                                <th>Size</th>
+                                <th>Created</th>
+                                <th>Architecture</th>
+                                <th>Layers</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="images-table-body">
+                            <!-- Images will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Empty state -->
+            <div id="empty-state" class="text-center py-5" style="display: none;">
+                <i class="fas fa-images fa-5x text-muted mb-3"></i>
+                <h3 class="text-muted">No Images Found</h3>
+                <p class="text-muted">No Docker images found with the configured prefix "{{ prefix }}".</p>
+                <button class="btn btn-primary" id="refresh-images-empty">
+                    <i class="fas fa-sync"></i> Refresh Images
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Details Modal -->
+    <div class="modal fade" id="imageDetailsModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Image Details</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="image-details-content">
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p>Loading image details...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pull Image Modal -->
+    <div class="modal fade" id="pullImageModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Pull Docker Image</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="image-name-input">Image Name</label>
+                        <input type="text" class="form-control" id="image-name-input" 
+                               placeholder="e.g., {{ prefix }}challenge-name:latest">
+                        <small class="form-text text-muted">
+                            Enter the full Docker image name. It should start with "{{ prefix }}" to appear in the list.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirm-pull-image">
+                        <i class="fas fa-download"></i> Pull Image
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        let currentPage = 1;
+        const itemsPerPage = 20;
+
+        // Wait for CTFd to load or use fallback
+        function initializeImagesPage() {
+            // Use CTFd's jQuery if available, otherwise try global $
+            const $ = (typeof CTFd !== 'undefined' && CTFd.lib && CTFd.lib.$) ? CTFd.lib.$ : 
+                      (typeof jQuery !== 'undefined') ? jQuery : 
+                      (typeof $ !== 'undefined') ? $ : null;
+
+            if (!$) {
+                console.error('jQuery not available');
+                return;
+            }
+
+            // Show alert with fallback
+            function showAlert(title, body, type = 'info') {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezAlert) {
+                    CTFd.ui.ezq.ezAlert({
+                        title: title,
+                        body: body,
+                        button: "OK"
+                    });
+                } else {
+                    alert(title + ': ' + body);
+                }
+            }
+
+            // Show confirmation with fallback
+            function showConfirm(title, body, callback) {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezQuery) {
+                    CTFd.ui.ezq.ezQuery({
+                        title: title,
+                        body: body,
+                        success: callback
+                    });
+                } else {
+                    if (confirm(title + ': ' + body)) {
+                        callback();
+                    }
+                }
+            }
+
+            // Copy to clipboard functionality
+            function copyToClipboard(event, str) {
+                const el = document.createElement('textarea');
+                el.value = str;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+
+                $(event.target).tooltip('dispose');
+                $(event.target).tooltip({
+                    title: "Copied!",
+                    trigger: "manual"
+                });
+                $(event.target).tooltip("show");
+
+                setTimeout(function () {
+                    $(event.target).tooltip("hide");
+                }, 1500);
+            }
+
+            function loadImages(page = 1) {
+                currentPage = page;
+                
+                // Show loading state
+                $('#loading-state').show();
+                $('#error-state').hide();
+                $('#images-container').hide();
+                $('#empty-state').hide();
+
+                fetch('/api/v1/plugins/ctfd-whale/admin/images', {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    $('#loading-state').hide();
+                    
+                    if (data.success && data.data.images.length > 0) {
+                        displayImages(data.data.images, data.data.total);
+                        $('#total-images-count').text(data.data.total);
+                    } else {
+                        if (data.message) {
+                            $('#error-message').text(data.message);
+                            $('#error-state').show();
+                        } else {
+                            $('#empty-state').show();
+                        }
+                        $('#total-images-count').text('0');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading images:', error);
+                    $('#loading-state').hide();
+                    $('#error-message').text('Failed to load images: ' + error.message);
+                    $('#error-state').show();
+                    $('#total-images-count').text('0');
+                });
+            }
+
+            function displayImages(images, total) {
+                const tbody = $('#images-table-body');
+                tbody.empty();
+
+                // Calculate pagination
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const paginatedImages = images.slice(startIndex, endIndex);
+
+                paginatedImages.forEach(image => {
+                    const row = `
+                        <tr>
+                            <td>
+                                <code class="click-copy" data-copy="${image.name}" 
+                                      data-toggle="tooltip" title="Click to copy full name">
+                                    ${image.name.length > 40 ? image.name.substring(0, 40) + '...' : image.name}
+                                </code>
+                                ${image.name.length > 40 ? `<br><small class="text-muted">${image.name}</small>` : ''}
+                            </td>
+                            <td>
+                                <strong>${image.short_name || 'latest'}</strong>
+                            </td>
+                            <td>
+                                <span class="badge badge-info">${image.size}</span>
+                            </td>
+                            <td>
+                                <small>${image.created}</small>
+                            </td>
+                            <td>
+                                <span class="badge badge-secondary">${image.architecture}</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-light">${image.layers}</span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info view-details" 
+                                            data-image-name="${image.name}"
+                                            data-toggle="tooltip" title="View Details">
+                                        <i class="fas fa-info-circle"></i>
+                                    </button>
+                                    <button class="btn btn-outline-primary use-image" 
+                                            data-image-name="${image.name}"
+                                            data-toggle="tooltip" title="Use in Challenge">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger remove-image" 
+                                            data-image-name="${image.name}"
+                                            data-toggle="tooltip" title="Remove Image">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+
+                // Setup event handlers for new elements
+                setupImageEventHandlers();
+                
+                // Generate pagination
+                generatePagination(images.length);
+
+                $('#images-container').show();
+            }
+
+            function generatePagination(totalItems) {
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+                const paginationContainer = $('#pagination-container');
+                
+                if (totalPages <= 1) {
+                    paginationContainer.empty();
+                    return;
+                }
+
+                let paginationHtml = '<nav><ul class="pagination pagination-sm">';
+                
+                // Previous button
+                paginationHtml += `<li class="page-item${currentPage <= 1 ? ' disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage - 1}"><span>&laquo;</span></a>
+                </li>`;
+                
+                // Page numbers
+                const startPage = Math.max(1, currentPage - 2);
+                const endPage = Math.min(totalPages, currentPage + 2);
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationHtml += `<li class="page-item${i === currentPage ? ' active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>`;
+                }
+                
+                // Next button
+                paginationHtml += `<li class="page-item${currentPage >= totalPages ? ' disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage + 1}"><span>&raquo;</span></a>
+                </li>`;
+                
+                paginationHtml += '</ul></nav>';
+                paginationContainer.html(paginationHtml);
+                
+                // Setup pagination event handlers
+                paginationContainer.find('.page-link').click(function(e) {
+                    e.preventDefault();
+                    const page = parseInt($(this).data('page'));
+                    if (page >= 1 && page <= totalPages && page !== currentPage) {
+                        loadImages(page);
+                    }
+                });
+            }
+
+            function setupImageEventHandlers() {
+                // Copy functionality
+                $(document).off('click', '.click-copy').on('click', '.click-copy', function(e) {
+                    e.preventDefault();
+                    copyToClipboard(e, $(this).data("copy"));
+                });
+
+                // View details
+                $(document).off('click', '.view-details').on('click', '.view-details', function(e) {
+                    e.preventDefault();
+                    const imageName = $(this).data('image-name');
+                    
+                    $("#imageDetailsModal").modal('show');
+                    $("#image-details-content").html(`
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p>Loading details for ${imageName}...</p>
+                        </div>
+                    `);
+
+                    setTimeout(function() {
+                        $("#image-details-content").html(`
+                            <h6>Image: <code>${imageName}</code></h6>
+                            <div class="alert alert-info">
+                                <small>Detailed image information feature coming soon. For now, you can inspect images using: <code>docker inspect ${imageName}</code></small>
+                            </div>
+                        `);
+                    }, 1000);
+                });
+
+                // Use image
+                $(document).off('click', '.use-image').on('click', '.use-image', function(e) {
+                    e.preventDefault();
+                    const imageName = $(this).data('image-name');
+                    
+                    showConfirm(
+                        "Use Image in Challenge",
+                        `Do you want to create a new challenge using image <code>${imageName}</code>?`,
+                        function() {
+                            window.location.href = `/admin/challenges/new?image=${encodeURIComponent(imageName)}`;
+                        }
+                    );
+                });
+
+                // Remove image
+                $(document).off('click', '.remove-image').on('click', '.remove-image', function(e) {
+                    e.preventDefault();
+                    const imageName = $(this).data('image-name');
+                    
+                    showConfirm(
+                        "Remove Image",
+                        `Are you sure you want to remove image <code>${imageName}</code>? This action cannot be undone.`,
+                        function() {
+                            showAlert("Feature Coming Soon", "Image removal will be implemented in a future version. For now, please remove images manually using 'docker rmi " + imageName + "'");
+                        }
+                    );
+                });
+
+                // Initialize tooltips for new elements
+                if ($.fn.tooltip) {
+                    $('[data-toggle="tooltip"]').tooltip();
+                }
+            }
+
+            // Refresh images
+            $(document).off('click', '#refresh-images, #refresh-images-empty').on('click', '#refresh-images, #refresh-images-empty', function(e) {
+                e.preventDefault();
+                $(this).prop('disabled', true);
+                $(this).html('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+                
+                fetch('/api/v1/plugins/ctfd-whale/admin/images/refresh', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                }).then(function(response) {
+                    return response.json();
+                }).then(function(data) {
+                    if (data.success) {
+                        showAlert("Success", data.message);
+                        loadImages(currentPage);
+                    } else {
+                        showAlert("Error", data.message || "Failed to refresh images");
+                    }
+                }).catch(function(error) {
+                    showAlert("Error", "Failed to refresh images: " + error.message);
+                }).finally(function() {
+                    $("#refresh-images, #refresh-images-empty").prop('disabled', false);
+                    $("#refresh-images").html('<i class="fas fa-sync"></i> Refresh Images');
+                    $("#refresh-images-empty").html('<i class="fas fa-sync"></i> Refresh Images');
+                });
+            });
+
+            // Pull image modal
+            $("#pull-image").click(function(e) {
+                e.preventDefault();
+                $("#pullImageModal").modal('show');
+            });
+
+            $("#confirm-pull-image").click(function(e) {
+                e.preventDefault();
+                const imageName = $("#image-name-input").val().trim();
+                
+                if (!imageName) {
+                    showAlert("Error", "Please enter an image name");
+                    return;
+                }
+
+                $(this).prop('disabled', true);
+                $(this).html('<i class="fas fa-spinner fa-spin"></i> Pulling...');
+
+                showAlert("Feature Coming Soon", "Image pulling will be implemented in a future version. For now, please pull images manually using 'docker pull " + imageName + "'");
+
+                $("#pullImageModal").modal('hide');
+                $(this).prop('disabled', false);
+                $(this).html('<i class="fas fa-download"></i> Pull Image');
+            });
+
+            // Load images on page initialization
+            loadImages(1);
+        }
+
+        // Try to initialize immediately, or wait for DOM
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(initializeImagesPage, 500);
+            });
+        } else {
+            setTimeout(initializeImagesPage, 500);
+        }
+    </script>
+{% endblock %}

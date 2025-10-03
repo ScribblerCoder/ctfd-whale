@@ -65,7 +65,7 @@ $('#containers-renew-button').click(function (e) {
         title: "Renew Containers",
         body: `Are you sure you want to renew the selected ${containers.length} container(s)?`,
         success: async function () {
-            await Promise.all(containers.toArray().map((container) => renew_container(container[0],container[1])));
+            await Promise.all(containers.toArray().map((container) => renew_container(container)));
             location.reload();
         }
     });
@@ -79,7 +79,7 @@ $('#containers-delete-button').click(function (e) {
         title: "Delete Containers",
         body: `Are you sure you want to delete the selected ${containers.length} container(s)?`,
         success: async function () {
-            await Promise.all(containers.toArray().map((container) => delete_container(container[0],container[1])));
+            await Promise.all(containers.toArray().map((container) => delete_container(container)));
             location.reload();
         }
     });
@@ -90,6 +90,7 @@ $(".delete-container").click(function (e) {
     let container_id = $(this).attr("container-id");
     let user_id = $(this).attr("user-id");
     let challenge_id = $(this).attr("challenge-id");
+
     CTFd.ui.ezq.ezQuery({
         title: "Destroy Container",
         body: "<span>Are you sure you want to delete <strong>Container #{0}</strong>?</span>".format(
@@ -107,6 +108,7 @@ $(".renew-container").click(function (e) {
     let container_id = $(this).attr("container-id");
     let user_id = $(this).attr("user-id");
     let challenge_id = $(this).attr("challenge-id");
+
     CTFd.ui.ezq.ezQuery({
         title: "Renew Container",
         body: "<span>Are you sure you want to renew <strong>Container #{0}</strong>?</span>".format(

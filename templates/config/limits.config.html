@@ -18,6 +18,61 @@
         </div>
     {% endfor %}
 
+    <hr>
+    <h5>🚨 Cheating Detection Settings</h5>
+    <small class="form-text text-muted">
+        Configure how long flags are kept for cheating detection after users solve challenges
+    </small><br>
+
+    {% set cheating_detection_period = get_config('whale:cheating_detection_period', '86400') %}
+    <div class="form-group">
+        <label for="cheating-detection-period">
+            Cheating Detection Period (seconds)
+            <small class="form-text text-muted">
+                How long to keep solved flags for cheating detection after container cleanup
+            </small>
+        </label>
+        <input type="text" class="form-control"
+               id="cheating-detection-period" name="whale:cheating_detection_period"
+               value="{{ cheating_detection_period }}">
+        <small class="form-text text-muted">
+            <strong>Recommended: 86400 (24 hours)</strong><br>
+            • Set to <code>0</code> to disable extended detection (flags deleted with container)<br>
+            • Set to <code>604800</code> for 7 days detection window<br>
+            • Set to <code>2592000</code> for 30 days detection window
+        </small>
+    </div>
+
+    {% set cheating_log_retention = get_config('whale:cheating_log_retention', '2592000') %}
+    <div class="form-group">
+        <label for="cheating-log-retention">
+            Cheating Log Retention (seconds)
+            <small class="form-text text-muted">
+                How long to keep cheating attempt logs for analysis
+            </small>
+        </label>
+        <input type="text" class="form-control"
+               id="cheating-log-retention" name="whale:cheating_log_retention"
+               value="{{ cheating_log_retention }}">
+        <small class="form-text text-muted">
+            <strong>Default: 2592000 (30 days)</strong><br>
+            • Set to <code>0</code> to keep logs forever (not recommended)<br>
+            • Logs include cheater, victim, flag, IP, and timestamp information
+        </small>
+    </div>
+
+    <div class="alert alert-info">
+        <h6><i class="fas fa-info-circle"></i> How Extended Cheating Detection Works</h6>
+        <p class="mb-2"><strong>Timeline Example:</strong></p>
+        <ol class="mb-2">
+            <li>Alice solves challenge → Her flag stored for detection</li>
+            <li>Alice's container destroyed → Flag still kept for cheating detection</li>
+            <li>Bob submits Alice's flag → <span class="badge badge-danger">CAUGHT!</span></li>
+            <li>After detection period → Flag purged from system</li>
+        </ol>
+        <p class="mb-0"><small><strong>Benefits:</strong> Catches flag sharing even after containers are cleaned up • Configurable retention • Automatic cleanup • Zero false positives</small></p>
+    </div>
+
     <div class="submit-row float-right">
         <button type="submit" tabindex="0" class="btn btn-md btn-primary btn-outlined">
             Submit
