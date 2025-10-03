@@ -395,7 +395,7 @@ class UserContainers(Resource):
         user_id = current_user.get_current_user().id
         challenge_id = request.args.get('challenge_id')
         docker_max_renew_count = int(get_config("whale:docker_max_renew_count", 5))
-        container = DBContainer.get_current_containers(user_id)
+        container = DBContainer.get_current_containers(user_id, challenge_id)
         if container is None:
             abort(403, 'Instance not found.', success=False)
         if int(container.challenge_id) != int(challenge_id):
