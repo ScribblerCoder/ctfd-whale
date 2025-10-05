@@ -299,11 +299,11 @@ class DockerUtils:
             # Handle both nested and flat formats
             if isinstance(config, dict):
                 image = config.get('image')
-                extra_cap = config.get('extra_cap', [])
+                cap_add = config.get('cap_add', [])
                 include_flag = config.get('flag', True)  # Default to True for backward compatibility
             else:
                 image = config
-                extra_cap = []
+                cap_add = []
                 include_flag = True
             
             if has_processed_main:
@@ -317,9 +317,6 @@ class DockerUtils:
             env = {}
             if include_flag:
                 env['FLAG'] = container.flag
-            
-            # Build container capabilities
-            cap_add = extra_cap if extra_cap else []
             
             client.services.create(
                 image=image, 
