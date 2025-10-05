@@ -295,29 +295,53 @@ class DockerUtils:
                 "Challenge Image Parse Error\n"
                 "plase check the challenge image string"
             )
-        for name, image in images.items():
+        for name, config in images.items():
+            # Handle both nested and flat formats
+            if isinstance(config, dict):
+                image = config.get('image')
+                extra_cap = config.get('extra_cap', [])
+                include_flag = config.get('flag', True)  # Default to True for backward compatibility
+            else:
+                image = config
+                extra_cap = []
+                include_flag = True
+            
             if has_processed_main:
                 container_name = f'{container.user_id}-{uuid.uuid4()}'
             else:
                 container_name = f'{container.user_id}-{container.uuid}'
                 node = DockerUtils.choose_node(image, get_config("whale:docker_swarm_nodes", "").split(","))
                 has_processed_main = True
+            
+            # Build environment variables
+            env = {}
+            if include_flag:
+                env['FLAG'] = container.flag
+            
+            # Build container capabilities
+            cap_add = extra_cap if extra_cap else None
+            
             client.services.create(
-                image=image, name=container_name, networks=[
+                image=image, 
+                name=container_name, 
+                networks=[
                     docker.types.NetworkAttachmentConfig(network_name, aliases=[name])
                 ],
-                env={'FLAG': container.flag},
+                env=env,
                 dns_config=docker.types.DNSConfig(nameservers=dns),
                 resources=docker.types.Resources(
                     mem_limit=DockerUtils.convert_readable_text(
                         container.challenge.memory_limit
                     ),
-                    cpu_limit=int(container.challenge.cpu_limit * 1e9)),
+                    cpu_limit=int(container.challenge.cpu_limit * 1e9)
+                ),
                 labels={
                     'whale_id': f'{container.user_id}-{container.uuid}'
                 },  # for container deletion
-                hostname=name, constraints=['node.labels.name==' + node],
-                endpoint_spec=docker.types.EndpointSpec(mode='dnsrr', ports={})
+                hostname=name, 
+                constraints=['node.labels.name==' + node],
+                endpoint_spec=docker.types.EndpointSpec(mode='dnsrr', ports={}),
+                cap_add=cap_add
             )
 
     @staticmethod
