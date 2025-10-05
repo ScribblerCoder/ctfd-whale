@@ -319,7 +319,7 @@ class DockerUtils:
                 env['FLAG'] = container.flag
             
             # Build container capabilities
-            cap_add = extra_cap if extra_cap else None
+            cap_add = extra_cap if extra_cap else []
             
             client.services.create(
                 image=image, 
