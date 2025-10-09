@@ -58,6 +58,7 @@
                         <button class="btn btn-link p-0 renew-container"
                            container-id="{{ container.id }}" data-toggle="tooltip"
                            user-id="{{ container.user.id }}" data-placement="top"
+                           challenge-id="{{ container.challenge.id }}"
                            title="Renew Container #{{ container.id }}">
                             <i class="fas fa-sync"></i>
                         </button>
@@ -66,6 +67,7 @@
                         <button class="btn btn-link p-0 delete-container"
                            container-id="{{ container.id }}" data-toggle="tooltip"
                            user-id="{{ container.user.id }}" data-placement="top"
+                           challenge-id="{{ container.challenge.id }}"
                            title="Destroy Container #{{ container.id }}">
                             <i class="fas fa-times"></i>
                     </button>
