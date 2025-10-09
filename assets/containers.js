@@ -65,7 +65,7 @@ $('#containers-renew-button').click(function (e) {
         title: "Renew Containers",
         body: `Are you sure you want to renew the selected ${containers.length} container(s)?`,
         success: async function () {
-            await Promise.all(containers.toArray().map((container) => renew_container(container)));
+            await Promise.all(containers.toArray().map((container) => renew_container(container[0],container[1])));
             location.reload();
         }
     });
@@ -79,7 +79,7 @@ $('#containers-delete-button').click(function (e) {
         title: "Delete Containers",
         body: `Are you sure you want to delete the selected ${containers.length} container(s)?`,
         success: async function () {
-            await Promise.all(containers.toArray().map((container) => delete_container(container)));
+            await Promise.all(containers.toArray().map((container) => delete_container(container[0],container[1])));
             location.reload();
         }
     });
