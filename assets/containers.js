@@ -90,6 +90,7 @@ $(".delete-container").click(function (e) {
     let container_id = $(this).attr("container-id");
     let user_id = $(this).attr("user-id");
     let challenge_id = $(this).attr("challenge-id");
+
     CTFd.ui.ezq.ezQuery({
         title: "Destroy Container",
         body: "<span>Are you sure you want to delete <strong>Container #{0}</strong>?</span>".format(
@@ -107,6 +108,7 @@ $(".renew-container").click(function (e) {
     let container_id = $(this).attr("container-id");
     let user_id = $(this).attr("user-id");
     let challenge_id = $(this).attr("challenge-id");
+
     CTFd.ui.ezq.ezQuery({
         title: "Renew Container",
         body: "<span>Are you sure you want to renew <strong>Container #{0}</strong>?</span>".format(

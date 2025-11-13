@@ -1,0 +1,363 @@
+{% extends "whale_base.html" %}
+
+{% block panel %}
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="alert alert-warning" role="alert">
+                <h5><i class="fas fa-exclamation-triangle"></i> Cheating Detection Dashboard</h5>
+                <p>This page shows attempts by users to submit other users' flags. Each entry represents a potential cheating incident.</p>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center">
+                                <h3>{{ total_attempts }}</h3>
+                                <small>Total Cheating Attempts</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body text-center">
+                                <h3>{{ unique_cheaters }}</h3>
+                                <small>Unique Cheaters</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h3>{{ unique_victims }}</h3>
+                                <small>Users Targeted</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-secondary text-white">
+                            <div class="card-body text-center">
+                                <h3>{{ affected_challenges }}</h3>
+                                <small>Affected Challenges</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="btn-group float-left" role="group">
+                <a href="/api/v1/plugins/ctfd-whale/admin/cheating/export" class="btn btn-outline-warning"
+                    data-toggle="tooltip" title="Export Cheating Report">
+                    <i class="fas fa-download"></i> Export CSV
+                </a>
+                <button type="button" class="btn btn-outline-danger"
+                    data-toggle="tooltip" title="Clear Old Records" id="clear-old-records">
+                    <i class="fas fa-trash"></i> Clear Old Records
+                </button>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="float-right">
+                <nav>
+                    <ul class="pagination pagination-sm">
+                        <li class="page-item{{ ' disabled' if curr_page <= 1 else '' }}">
+                            <a class="page-link" href="/plugins/ctfd-whale/admin/cheating?page={{ curr_page - 1 }}">
+                                <span>&laquo;</span>
+                            </a>
+                        </li>
+                        {% set range_l = [[curr_page - 1, 1]|max, [pages - 3, 1]|max]|min %}
+                        {% set range_r = [[curr_page + 2, pages]|min, [4, pages]|min]|max %}
+                        {% for page in range(range_l, range_r + 1) %}
+                            <li class="page-item{{ ' active' if curr_page == page }}">
+                                <a class="page-link" href="/plugins/ctfd-whale/admin/cheating?page={{ page }}">{{ page }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item{{ ' disabled' if curr_page >= pages else '' }}">
+                            <a class="page-link" href="/plugins/ctfd-whale/admin/cheating?page={{ curr_page + 1 }}">
+                                <span>&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            {% if cheating_attempts %}
+                <table class="table table-striped border">
+                    <thead>
+                        <tr>
+                            <th class="text-center"><b>Time</b></th>
+                            <th class="text-center"><b>Cheater</b></th>
+                            <th class="text-center"><b>Victim</b></th>
+                            <th class="text-center"><b>Challenge</b></th>
+                            <th class="text-center"><b>Flag</b></th>
+                            <th class="text-center"><b>IP Address</b></th>
+                            <th class="text-center"><b>User Agent</b></th>
+                            <th class="text-center"><b>Actions</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attempt in cheating_attempts %}
+                            <tr class="{% if loop.index <= 5 %}table-danger{% endif %}">
+                                <td class="text-center">
+                                    <small>{{ attempt.attempt_time.strftime('%Y-%m-%d') }}<br>{{ attempt.attempt_time.strftime('%H:%M:%S') }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('admin.users_detail', user_id=attempt.cheater.id) }}" 
+                                       class="badge badge-danger">
+                                        {{ attempt.cheater.name | truncate(12) }}
+                                    </a>
+                                    <br><small class="text-muted">ID: {{ attempt.cheater.id }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('admin.users_detail', user_id=attempt.victim.id) }}" 
+                                       class="badge badge-info">
+                                        {{ attempt.victim.name | truncate(12) }}
+                                    </a>
+                                    <br><small class="text-muted">ID: {{ attempt.victim.id }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('admin.challenges_detail', challenge_id=attempt.challenge.id) }}">
+                                        {{ attempt.challenge.name | truncate(15) }}
+                                    </a>
+                                    <br><small class="text-muted">{{ attempt.challenge.category }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-link p-0 click-copy" data-copy="{{ attempt.submitted_flag }}" 
+                                            data-toggle="tooltip" title="Click to copy full flag">
+                                        <i class="fas fa-clipboard"></i>
+                                    </button>
+                                    <br><small class="text-muted">{{ attempt.submitted_flag | truncate(10) }}</small>
+                                </td>
+                                <td class="text-center">
+                                    {% if attempt.cheater_ip %}
+                                        <button class="btn btn-link p-0 click-copy" data-copy="{{ attempt.cheater_ip }}" 
+                                                data-toggle="tooltip" title="Click to copy IP">
+                                            <i class="fas fa-clipboard"></i>
+                                        </button>
+                                        <br><small class="text-muted">{{ attempt.cheater_ip }}</small>
+                                    {% else %}
+                                        <small class="text-muted">Unknown</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if attempt.user_agent %}
+                                        <button class="btn btn-link p-0 click-copy" data-copy="{{ attempt.user_agent }}" 
+                                                data-toggle="tooltip" title="Click to copy user agent">
+                                            <i class="fas fa-clipboard"></i>
+                                        </button>
+                                        <br><small class="text-muted">{{ attempt.user_agent | truncate(15) }}</small>
+                                    {% else %}
+                                        <small class="text-muted">N/A</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-link p-0 investigate-user" 
+                                            data-user-id="{{ attempt.cheater.id }}"
+                                            data-user-name="{{ attempt.cheater.name }}"
+                                            data-toggle="tooltip" data-placement="top"
+                                            title="Investigate User">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                    <button class="btn btn-link p-0 warn-user" 
+                                            data-user-id="{{ attempt.cheater.id }}"
+                                            data-user-name="{{ attempt.cheater.name }}"
+                                            data-toggle="tooltip" data-placement="top"
+                                            title="Send Warning">
+                                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-shield-alt fa-5x text-success mb-3"></i>
+                    <h3 class="text-success">No Cheating Detected!</h3>
+                    <p class="text-muted">All flag submissions appear to be legitimate.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+
+        function initializeCheatingPage() {
+
+            const $ = (typeof CTFd !== 'undefined' && CTFd.lib && CTFd.lib.$) ? CTFd.lib.$ : 
+                      (typeof jQuery !== 'undefined') ? jQuery : 
+                      (typeof $ !== 'undefined') ? $ : null;
+
+            if (!$) {
+                console.error('jQuery not available');
+                return;
+            }
+
+
+            function copyToClipboard(event, str) {
+                const el = document.createElement('textarea');
+                el.value = str;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+
+                $(event.target).tooltip('dispose');
+                $(event.target).tooltip({
+                    title: "Copied!",
+                    trigger: "manual"
+                });
+                $(event.target).tooltip("show");
+
+                setTimeout(function () {
+                    $(event.target).tooltip("hide");
+                }, 1500);
+            }
+
+
+            function showAlert(title, body, type = 'info') {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezAlert) {
+                    CTFd.ui.ezq.ezAlert({
+                        title: title,
+                        body: body,
+                        button: "OK"
+                    });
+                } else {
+                    alert(title + ': ' + body);
+                }
+            }
+
+
+            function showConfirm(title, body, callback) {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezQuery) {
+                    CTFd.ui.ezq.ezQuery({
+                        title: title,
+                        body: body,
+                        success: callback
+                    });
+                } else {
+                    if (confirm(title + ': ' + body)) {
+                        callback();
+                    }
+                }
+            }
+
+
+            function showPrompt(title, body, placeholder, callback) {
+                if (typeof CTFd !== 'undefined' && CTFd.ui && CTFd.ui.ezq && CTFd.ui.ezq.ezPrompt) {
+                    CTFd.ui.ezq.ezPrompt({
+                        title: title,
+                        body: body,
+                        placeholder: placeholder,
+                        success: callback
+                    });
+                } else {
+                    const result = prompt(body, '');
+                    if (result) {
+                        callback(result);
+                    }
+                }
+            }
+
+
+            $(".click-copy").click(function (e) {
+                e.preventDefault();
+                copyToClipboard(e, $(this).data("copy"));
+            });
+
+
+            $(".investigate-user").click(function(e) {
+                e.preventDefault();
+                const userId = $(this).data('user-id');
+                const userName = $(this).data('user-name');
+                
+                showConfirm(
+                    "Investigate User",
+                    `Open detailed view for user <strong>${userName}</strong> (ID: ${userId})?`,
+                    function() {
+                        window.open(`/admin/users/${userId}`, '_blank');
+                    }
+                );
+            });
+
+
+            $(".warn-user").click(function(e) {
+                e.preventDefault();
+                const userId = $(this).data('user-id');
+                const userName = $(this).data('user-name');
+                
+                showPrompt(
+                    "Send Warning to User",
+                    `Send a warning message to <strong>${userName}</strong> about cheating:`,
+                    "Enter warning message...",
+                    function(message) {
+                        if (message && message.trim()) {
+                            showAlert(
+                                "Warning Sent",
+                                `Warning sent to ${userName}: "${message}"`
+                            );
+                        }
+                    }
+                );
+            });
+
+
+            $("#clear-old-records").click(function(e) {
+                e.preventDefault();
+                showConfirm(
+                    "Clear Old Records", 
+                    "Are you sure you want to clear cheating records older than 30 days?",
+                    function() {
+                        fetch('/api/v1/plugins/ctfd-whale/admin/cheating/clear', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            }
+                        }).then(function(response) {
+                            return response.json();
+                        }).then(function(data) {
+                            if (data.success) {
+                                showAlert("Success", data.message);
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1000);
+                            } else {
+                                showAlert("Error", data.message || "An error occurred");
+                            }
+                        }).catch(function(error) {
+                            showAlert("Error", "Failed to clear records: " + error.message);
+                        });
+                    }
+                );
+            });
+
+
+            if ($.fn.tooltip) {
+                $('[data-toggle="tooltip"]').tooltip();
+            }
+        }
+
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(initializeCheatingPage, 500);
+            });
+        } else {
+            setTimeout(initializeCheatingPage, 500);
+        }
+    </script>
+{% endblock %}

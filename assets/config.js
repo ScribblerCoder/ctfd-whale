@@ -1,6 +1,6 @@
 const $ = CTFd.lib.$;
 
-$(".config-section > form:not(.form-upload)").submit(async function (event) {
+$("#whale-config-form").submit(async function (event) {
     event.preventDefault();
     const obj = $(this).serializeJSON();
     const params = {};
